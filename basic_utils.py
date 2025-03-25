@@ -3,10 +3,11 @@ import torch
 import json, os
 import time
 
-from diffuseq import gaussian_diffusion as gd
-from diffuseq.gaussian_diffusion import SpacedDiffusion, space_timesteps
-from diffuseq.transformer_model import TransformerNetModel
+from model import diffusion as gd
+from model.diffusion import SpacedDiffusion, space_timesteps
+from model.transformer import TransformerNetModel
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
+
 
 class myTokenizer():
     """
@@ -81,7 +82,6 @@ def load_model_emb(args, tokenizer):
             print('initializing the random embeddings', model)
             torch.nn.init.normal_(model.weight)
             torch.save(model.state_dict(), path_save)
-            os.sync()
             with open(path_save_ind, "x") as _:
                 pass
     else:
@@ -101,7 +101,7 @@ def load_defaults_config():
     """
     Load defaults for training args.
     """
-    with open('diffuseq/config.json', 'r') as f:
+    with open('model/diffuseq/config.json', 'r') as f:
         return json.load(f)
 
 

@@ -104,6 +104,14 @@ class TransformerNetModel(nn.Module):
             self.output_down_proj = nn.Sequential(nn.Linear(config.hidden_size, config.hidden_size),
                                                   nn.Tanh(), nn.Linear(config.hidden_size, self.output_dims))
 
+        self.coord_encoder = nn.Sequential(
+            nn.Linear(2, self.hidden_size // 2),
+            SiLU(),
+            nn.Linear(self.hidden_size // 2, self.hidden_size)  # Output hidden_size instead of input_dims
+        )
+
+        self.coord_decoder = nn.Linear(self.output_dims, 2)
+
     def get_embeds(self, input_ids):
         return self.word_embedding(input_ids)
 
@@ -124,24 +132,25 @@ class TransformerNetModel(nn.Module):
         else:
             raise NotImplementedError
 
-    def forward(self, x, timesteps):
-        """
-        Apply the model to an input batch.
-
-        :param x: an [N x C x ...] Tensor of inputs.
-        :param timesteps: a 1-D batch of timesteps.
-        :return: an [N x C x ...] Tensor of outputs.
-        """
+    def forward(self, x, timesteps, **kwargs):
+        # Process inputs as before
         emb_t = self.time_embed(timestep_embedding(timesteps, self.hidden_t_dim))
 
-        if self.input_dims != self.hidden_size:
+        # Store original input shape/type for later
+        is_coordinates = x.dim() == 3 and x.shape[-1] == 2
+
+        # Process inputs
+        if is_coordinates:
+            emb_x = self.coord_encoder(x)
+        elif self.input_dims != self.hidden_size:
             emb_x = self.input_up_proj(x)
         else:
             emb_x = x
 
+        # Transformer processing
         seq_length = x.size(1)
-        position_ids = self.position_ids[:, : seq_length]
-        # print(emb_x.shape, emb_t.shape, self.position_embeddings)
+        position_ids = self.position_ids[:, :seq_length]
+
         emb_inputs = self.position_embeddings(position_ids) + emb_x + emb_t.unsqueeze(1).expand(-1, seq_length, -1)
         emb_inputs = self.dropout(self.LayerNorm(emb_inputs))
 
@@ -151,5 +160,10 @@ class TransformerNetModel(nn.Module):
             h = self.output_down_proj(input_trans_hidden_states)
         else:
             h = input_trans_hidden_states
+
+        # Project back to coordinate space if input was coordinates
+        if is_coordinates:
+            h = self.coord_decoder(h)
+
         h = h.type(x.dtype)
         return h

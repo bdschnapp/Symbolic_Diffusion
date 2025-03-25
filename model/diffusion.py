@@ -580,59 +580,48 @@ class GaussianDiffusion:
 
     def training_losses_seq2seq(self, model, x_start, t, model_kwargs=None, noise=None):
         """
-        Compute training losses for a single timestep.
-
-        :param model: the model to evaluate loss on.
-        :param x_start: the [N x C x ...] tensor of inputs. # not used unless fixing the input embeddings
-        :param t: a batch of timestep indices.
-        :param model_kwargs: if not None, a dict of extra keyword arguments to
-            pass to the model. This can be used for conditioning.
-        :param noise: if specified, the specific Gaussian noise to try to remove.
-        :return: a dict with the key "loss" containing a tensor of shape [N].
-                 Some mean or variance settings may also have other keys.
+        Training loss calculation that works with both text tokens and coordinate data.
         """
-        x_start_fix = x_start  # save the orignal x_0
-        assert 'input_ids' in model_kwargs
-        input_ids_x = model_kwargs.pop('input_ids').to(t.device)
-        input_ids_mask = model_kwargs.pop('input_mask').to(t.device)
-        x_start_mean = model.model.module.get_embeds(input_ids_x)
+        if model_kwargs is None:
+            model_kwargs = {}
 
-        std = _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod,
-                                   th.tensor([0]).to(x_start_mean.device),
-                                   x_start_mean.shape)
-        # print(std.shape, )
-        # x_start_log_var = 2 * th.log(std)
-        x_start = self._get_x_start(x_start_mean, std)
-        # print(x_start_mean.shape, x_start.shape)
+        # Add noise to coordinates
         if noise is None:
             noise = th.randn_like(x_start)
+        x_t = self.q_sample(x_start, t, noise=noise)
 
-        x_t = self.q_sample(x_start, t, noise=noise, mask=input_ids_mask)  # reparametrization trick.
-
-        get_logits = model.model.module.get_logits
-
-        terms = {}
-
-        target = x_start
+        # Run model on noisy coordinates
         model_output = model(x_t, self._scale_timesteps(t), **model_kwargs)
-        assert model_output.shape == target.shape == x_start.shape
-        terms["mse"] = mean_flat((target - model_output) ** 2)
 
-        model_out_x_start = self._x0_helper(model_output, x_t, t)['pred_xstart']  # predicted_xstart = model_output
-        t0_mask = (t == 0)
-        t0_loss = mean_flat((x_start_mean - model_out_x_start) ** 2)
-        terms["mse"] = th.where(t0_mask, t0_loss, terms["mse"])
+        # Calculate MSE loss on coordinates
+        # For coordinate data, predict the coordinates directly
+        if self.predict_xstart:
+            # Direct prediction of x_start
+            mse = mean_flat((model_output - x_start) ** 2)
+        else:
+            # Predict noise
+            target = noise
+            mse = mean_flat((model_output - target) ** 2)
 
-        # tT_mask = (t == self.num_timesteps - 1)
-        out_mean, _, _ = self.q_mean_variance(x_start, th.LongTensor([self.num_timesteps - 1]).to(x_start.device))
-        tT_loss = mean_flat(out_mean ** 2)
+        terms = {"coord_mse": mse}
 
-        decoder_nll = self._token_discrete_loss(x_start, get_logits, input_ids_x)  # embedding regularization
-        terms["nll"] = self._token_discrete_loss(model_out_x_start, get_logits, input_ids_x, mask=input_ids_mask,
-                                                 truncate=True, t=t)  # x_0->model_out_x_start
-        # assert (model.lm_head.weight == model.word_embedding.weight).all()
-
-        terms["loss"] = terms["mse"] + decoder_nll + tT_loss
+        # Get token IDs if provided for conditioning
+        input_ids = model_kwargs.get("input_ids", None)
+        if input_ids is not None and hasattr(model, "get_logits"):
+            # If the model also predicts tokens, calculate token loss
+            logits = model.get_logits(model_output)
+            token_loss = th.nn.functional.cross_entropy(
+                logits.reshape(-1, logits.size(-1)),
+                input_ids.reshape(-1),
+                ignore_index=-100,
+                reduction="mean"
+            )
+            terms["token_loss"] = token_loss
+            # Weighted sum (adjust weights as needed)
+            terms["loss"] = mse + token_loss
+        else:
+            # Just coordinate loss
+            terms["loss"] = mse
 
         return terms
 

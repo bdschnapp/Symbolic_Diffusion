@@ -18,11 +18,12 @@ from basic_utils import (
     args_to_dict,
     add_dict_to_argparser,
     load_model_emb,
-    load_tokenizer
 )
 from train import TrainLoop
 from transformers import set_seed
 import wandb
+
+from model.tokeinzer import load_tokenizer
 
 ### custom your wandb setting here ###
 # os.environ["WANDB_API_KEY"] = ""
@@ -47,25 +48,23 @@ def main():
     tokenizer = load_tokenizer(args)
     model_weight, tokenizer = load_model_emb(args, tokenizer)
 
-    # TODO
-    data = load_data_text(
+    data = load_data(
         batch_size=args.batch_size,
         seq_len=args.seq_len,
         data_args = args,
         loaded_vocab=tokenizer,
-        model_emb=model_weight # use model's weights as init
+        model_emb=model_weight
     )
     next(data)
 
-    # TODO
-    data_valid = load_data_text(
+    data_valid = load_data(
         batch_size=args.batch_size,
         seq_len=args.seq_len,
         data_args=args,
-        split='valid',
+        split='val',
         deterministic=True,
         loaded_vocab=tokenizer,
-        model_emb=model_weight # using the same embedding wight with tranining data
+        model_emb=model_weight
     )
 
     print('#'*30, 'size of vocab', args.vocab_size)
@@ -118,3 +117,7 @@ def main():
         eval_data=data_valid,
         eval_interval=args.eval_interval
     ).run_loop()
+
+
+if __name__ == "__main__":
+    main()
