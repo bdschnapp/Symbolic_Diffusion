@@ -97,7 +97,7 @@ def evaluate(args):
         batch_size=args.batch_size,
         seq_len=args.seq_len,
         data_args=args,
-        split="train",
+        split="val",
         deterministic=True,
         loaded_vocab=tokenizer,
         model_emb=model_weight

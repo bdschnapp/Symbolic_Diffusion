@@ -72,28 +72,8 @@ class TransformerNetModel(nn.Module):
             self.input_up_proj = nn.Sequential(nn.Linear(input_dims, config.hidden_size),
                                                nn.Tanh(), nn.Linear(config.hidden_size, config.hidden_size))
 
-        if init_pretrained == 'bert':
-            print('initializing from pretrained bert...')
-            print(config)
-            temp_bert = BertModel.from_pretrained(config_name, config=config)
-
-            self.word_embedding = temp_bert.embeddings.word_embeddings
-            with th.no_grad():
-                self.lm_head.weight = self.word_embedding.weight
-            # self.lm_head.weight.requires_grad = False
-            # self.word_embedding.weight.requires_grad = False
-
-            self.input_transformers = temp_bert.encoder
-            self.register_buffer("position_ids", torch.arange(config.max_position_embeddings).expand((1, -1)))
-            self.position_embeddings = temp_bert.embeddings.position_embeddings
-            self.LayerNorm = temp_bert.embeddings.LayerNorm
-
-            del temp_bert.embeddings
-            del temp_bert.pooler
-
-        elif init_pretrained == 'no':
+        if init_pretrained == 'no':
             self.input_transformers = BertEncoder(config)
-
             self.register_buffer("position_ids", torch.arange(config.max_position_embeddings).expand((1, -1)))
             self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
             self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -107,11 +87,7 @@ class TransformerNetModel(nn.Module):
             self.output_down_proj = nn.Sequential(nn.Linear(config.hidden_size, config.hidden_size),
                                                   nn.Tanh(), nn.Linear(config.hidden_size, self.output_dims))
 
-        self.coord_encoder = nn.Sequential(
-            nn.Linear(2, self.hidden_size // 2),
-            SiLU(),
-            nn.Linear(self.hidden_size // 2, self.hidden_size)  # Output hidden_size instead of input_dims
-        )
+        self.coord_encoder = nn.LSTM(2, self.input_dims, 2, batch_first=True)
 
     def get_embeds(self, input_ids):
         return self.word_embedding(input_ids)

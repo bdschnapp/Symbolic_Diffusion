@@ -24,6 +24,7 @@ from transformers import set_seed
 import wandb
 
 from model.tokeinzer import load_tokenizer
+from model.encoder import LSTMAutoencoder
 
 ### custom your wandb setting here ###
 # os.environ["WANDB_API_KEY"] = ""
@@ -69,6 +70,21 @@ def main():
         verbose=True
     )
 
+    lstm_encoder = LSTMAutoencoder(
+        input_dim=2,  # Assuming 2D coordinates
+        hidden_dim=args.hidden_dim,
+        num_layers=2,  # if you change this, also update the matching coord_encoder LSTM in the transformer
+    )
+
+    print("Training LSTM Autoencoder...")
+    # unsupervised pretrain the encoder
+    for i in range(1000):
+        batch = next(data)
+        lstm_encoder.train_batch(batch)
+    print("LSTM Autoencoder training complete.")
+
+    lstm_encoder.to(dist_util.dev())
+
     print('#'*30, 'size of vocab', args.vocab_size)
 
     logger.log("### Creating model and diffusion...")
@@ -79,6 +95,8 @@ def main():
     # print('#'*30, 'cuda', dist_util.dev())
     model.to(dist_util.dev()) #  DEBUG **
     # model.cuda() #  DEBUG **
+
+    model.coord_encoder.load_state_dict(lstm_encoder.encoder.state_dict())
 
     pytorch_total_params = sum(p.numel() for p in model.parameters())
 
