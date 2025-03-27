@@ -4,7 +4,7 @@ import json
 class MathTokenizer:
     def __init__(self, args):
         vocab_path = args.vocab
-
+        self.sequence_length = args.seq_len
         with open(vocab_path, 'r', encoding='utf-8') as f:
             self.vocab = json.load(f)
 
@@ -38,17 +38,6 @@ class MathTokenizer:
 
         self.vocab_size = len(self.vocab)
 
-    """
-    def encode_token(self, sentences):
-        if isinstance(self.tokenizer, dict):
-            input_ids = [[0] + [self.tokenizer.get(x, self.tokenizer['[UNK]']) for x in seq.split()] + [1] for seq in sentences]
-        elif isinstance(self.tokenizer, PreTrainedTokenizerFast):
-            input_ids = self.tokenizer(sentences, add_special_tokens=True)['input_ids']
-        else:
-            assert False, "invalid type of vocab_dict"
-        return input_ids
-    """
-
     def encode(self, expression, add_special_tokens=True):
         tokens = self.tokenize(expression)
         token_ids = []
@@ -59,6 +48,8 @@ class MathTokenizer:
             token_ids.append(self.vocab.get(token, self.vocab["[UNK]"]))
         if add_special_tokens:
             token_ids.append(self.vocab["[EOS]"])
+        while len(token_ids) < self.sequence_length:
+            token_ids.append(self.vocab["[PAD]"])
         return token_ids
 
     def encode_token(self, expression):
@@ -70,23 +61,6 @@ class MathTokenizer:
             return self.encode(expression)
         elif isinstance(expression, list):
             return [self.encode(expr) for expr in expression]
-
-    """
-        def decode_token(self, seq):
-        if isinstance(self.tokenizer, dict):
-            seq = seq.squeeze(-1).tolist()
-            while len(seq)>0 and seq[-1] == self.pad_token_id:
-                seq.pop()
-            tokens = " ".join([self.rev_tokenizer[x] for x in seq]).replace('__ ', '').replace('@@ ', '')
-        elif isinstance(self.tokenizer, PreTrainedTokenizerFast):
-            seq = seq.squeeze(-1).tolist()
-            while len(seq)>0 and seq[-1] == self.pad_token_id:
-                seq.pop()
-            tokens = self.tokenizer.decode(seq)
-        else:
-            assert False, "invalid type of vocab_dict"
-        return tokens
-    """
 
     def decode(self, token_ids):
         """

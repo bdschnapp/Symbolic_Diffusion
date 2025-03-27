@@ -1,12 +1,10 @@
 from transformers import AutoConfig
-# from transformers import BertEncoder
 from transformers.models.bert.modeling_bert import BertEncoder, BertModel
 import torch
 
 import numpy as np
 import torch as th
 import torch.nn as nn
-import torch.nn.functional as F
 
 from .utils.nn import (
     SiLU,
@@ -53,8 +51,13 @@ class TransformerNetModel(nn.Module):
         self.logits_mode = logits_mode
         self.hidden_size = config.hidden_size
 
+        if vocab_size is None or vocab_size <= 0:
+            vocab_size = 22  # Default vocabulary size
+
+        self.vocab_size = vocab_size
+
         self.word_embedding = nn.Embedding(vocab_size, self.input_dims)
-        self.lm_head = nn.Linear(self.input_dims, vocab_size)
+        self.lm_head = nn.Linear(self.input_dims, vocab_size, bias=False)
         with th.no_grad():
             self.lm_head.weight = self.word_embedding.weight
 
@@ -110,8 +113,6 @@ class TransformerNetModel(nn.Module):
             nn.Linear(self.hidden_size // 2, self.hidden_size)  # Output hidden_size instead of input_dims
         )
 
-        self.coord_decoder = nn.Linear(self.output_dims, 2)
-
     def get_embeds(self, input_ids):
         return self.word_embedding(input_ids)
 
@@ -147,10 +148,9 @@ class TransformerNetModel(nn.Module):
         else:
             emb_x = x
 
-        # Transformer processing
         seq_length = x.size(1)
-        position_ids = self.position_ids[:, :seq_length]
-
+        position_ids = self.position_ids[:, : seq_length]
+        # print(emb_x.shape, emb_t.shape, self.position_embeddings)
         emb_inputs = self.position_embeddings(position_ids) + emb_x + emb_t.unsqueeze(1).expand(-1, seq_length, -1)
         emb_inputs = self.dropout(self.LayerNorm(emb_inputs))
 
@@ -160,10 +160,5 @@ class TransformerNetModel(nn.Module):
             h = self.output_down_proj(input_trans_hidden_states)
         else:
             h = input_trans_hidden_states
-
-        # Project back to coordinate space if input was coordinates
-        if is_coordinates:
-            h = self.coord_decoder(h)
-
         h = h.type(x.dtype)
         return h

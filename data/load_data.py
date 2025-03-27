@@ -104,7 +104,6 @@ def load_data(
         print("No cached dataset found. Loading raw data...")
         # Load raw data from CSV file
         data = load_data_csv(split)
-
         # Process each record: convert infix notation to RPN if needed.
         for record in data:
             if "Skeleton" in record and "RPN" not in record:
@@ -112,18 +111,22 @@ def load_data(
                 rpn_expr = infix_to_rpn(skeleton_expr)
                 record["RPN"] = rpn_expr
 
+        tokenize_func = loaded_vocab.encode_token
+        # remove entries where the RPN string is too long
+        data = [record for record in data if len(tokenize_func(record["RPN"])) == seq_len]
+
         # Create dataset dictionary in the format expected by tokenize_helper.
         dataset_dict = {
-            'src_x': [record["X"] for record in data],
-            'src_y': [record["Y"] for record in data],
+            'src_x': [np.array(record["X"]).reshape(-1).tolist() for record in data],
+            'src_y': [np.array(record["Y"]).reshape(-1).tolist() for record in data],
             'trg': [record["RPN"] for record in data]
         }
 
         if verbose:
-            print(f"Total records: {len(data)}")
-            print(f"Sample RPN: {data[0]['RPN']}")
-            print(f"Sample X length: {len(data[0]['X'])}")
-            print(f"Sample Y length: {len(data[0]['Y'])}")
+            print(f"Total records: {len(dataset_dict['src_x'])}")
+            print(f"Sample RPN: {dataset_dict['trg'][0]}")
+            print(f"Sample X: {dataset_dict['src_x'][0]}")
+            print(f"Sample Y: {dataset_dict['src_y'][0]}")
             print(f"Vocabulary size: {loaded_vocab.vocab_size}")
 
         # Process and tokenize the dataset

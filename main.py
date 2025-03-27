@@ -53,7 +53,8 @@ def main():
         seq_len=args.seq_len,
         data_args = args,
         loaded_vocab=tokenizer,
-        model_emb=model_weight
+        model_emb=model_weight,
+        verbose=True
     )
     next(data)
 
@@ -64,7 +65,8 @@ def main():
         split='val',
         deterministic=True,
         loaded_vocab=tokenizer,
-        model_emb=model_weight
+        model_emb=model_weight,
+        verbose=True
     )
 
     print('#'*30, 'size of vocab', args.vocab_size)
