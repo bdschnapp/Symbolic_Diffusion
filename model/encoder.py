@@ -21,6 +21,10 @@ class LSTMAutoencoder(nn.Module):
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
+        self.min_loss = float('inf')
+        self.patience = 10
+        self.early_stopping_counter = 0
+
     def forward(self, x):
         # x: [batch_size, seq_length, input_dim]
         # ----- Encoding -----
@@ -42,11 +46,19 @@ class LSTMAutoencoder(nn.Module):
         return reconstructed
 
     def train_batch(self, batch):
-        self.optimizer.zero_grad()
-        # Forward pass: The model should output a tensor of the same shape [batch_size, sequence_len, 2]
-        output = self(batch[0])
+        if self.early_stopping_counter <= self.patience:
+            self.optimizer.zero_grad()
+            # Forward pass: The model should output a tensor of the same shape [batch_size, sequence_len, 2]
+            output = self(batch[0])
 
-        # Compute the reconstruction loss
-        loss = self.criterion(output, batch[0])
-        loss.backward()
-        self.optimizer.step()
+            # Compute the reconstruction loss
+            loss = self.criterion(output, batch[0])
+            loss.backward()
+            self.optimizer.step()
+
+            if loss.item() > self.min_loss:
+                self.early_stopping_counter += 1
+            else:
+                self.early_stopping_counter = 0
+            self.min_loss = min(self.min_loss, loss.item())
+

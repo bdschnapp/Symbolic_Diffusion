@@ -87,7 +87,7 @@ class TransformerNetModel(nn.Module):
             self.output_down_proj = nn.Sequential(nn.Linear(config.hidden_size, config.hidden_size),
                                                   nn.Tanh(), nn.Linear(config.hidden_size, self.output_dims))
 
-        self.coord_encoder = nn.LSTM(2, self.input_dims, 2, batch_first=True)
+        self.coord_encoder = nn.LSTM(2, self.hidden_size, 2, batch_first=True)
 
     def get_embeds(self, input_ids):
         return self.word_embedding(input_ids)
@@ -118,7 +118,8 @@ class TransformerNetModel(nn.Module):
 
         # Process inputs
         if is_coordinates:
-            emb_x = self.coord_encoder(x)
+            output, (hidden, cell) = self.coord_encoder(x)
+            emb_x = hidden[-1]
         elif self.input_dims != self.hidden_size:
             emb_x = self.input_up_proj(x)
         else:

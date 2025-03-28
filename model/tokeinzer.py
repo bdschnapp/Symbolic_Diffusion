@@ -67,7 +67,7 @@ class MathTokenizer:
         Convert a list of token IDs back into a token sequence (string).
         Optionally remove special tokens ([SOS], [EOS], and [PAD]).
         """
-        remove_special_tokens = True
+        remove_special_tokens = False
         tokens = []
         for tid in token_ids:
             token = self.inv_vocab.get(tid, "[UNK]")
@@ -84,6 +84,5 @@ class MathTokenizer:
 
 
 def load_tokenizer(args):
-    # TODO:
     tokenizer = MathTokenizer(args)
     return tokenizer

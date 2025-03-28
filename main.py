@@ -70,9 +70,20 @@ def main():
         verbose=True
     )
 
+    print('#'*30, 'size of vocab', args.vocab_size)
+
+    logger.log("### Creating model and diffusion...")
+    # print('#'*30, 'CUDA_VISIBLE_DEVICES', os.environ['CUDA_VISIBLE_DEVICES'])
+    model, diffusion = create_model_and_diffusion(
+        **args_to_dict(args, load_defaults_config().keys())
+    )
+    # print('#'*30, 'cuda', dist_util.dev())
+    model.to(dist_util.dev()) #  DEBUG **
+    # model.cuda() #  DEBUG **
+
     lstm_encoder = LSTMAutoencoder(
         input_dim=2,  # Assuming 2D coordinates
-        hidden_dim=args.hidden_dim,
+        hidden_dim=model.hidden_size,
         num_layers=2,  # if you change this, also update the matching coord_encoder LSTM in the transformer
     )
 
@@ -84,17 +95,6 @@ def main():
     print("LSTM Autoencoder training complete.")
 
     lstm_encoder.to(dist_util.dev())
-
-    print('#'*30, 'size of vocab', args.vocab_size)
-
-    logger.log("### Creating model and diffusion...")
-    # print('#'*30, 'CUDA_VISIBLE_DEVICES', os.environ['CUDA_VISIBLE_DEVICES'])
-    model, diffusion = create_model_and_diffusion(
-        **args_to_dict(args, load_defaults_config().keys())
-    )
-    # print('#'*30, 'cuda', dist_util.dev())
-    model.to(dist_util.dev()) #  DEBUG **
-    # model.cuda() #  DEBUG **
 
     model.coord_encoder.load_state_dict(lstm_encoder.encoder.state_dict())
 

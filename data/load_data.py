@@ -309,11 +309,24 @@ def tokenize_helper(sentence_lst, vocab_dict, seq_len):
         desc="padding",
     )
 
+    def update_mask(batch):
+        updated_masks = []
+        for input_ids in batch['input_ids']:
+            updated_masks.append([1 if token_id != 0 else 0 for token_id in input_ids])
+        batch['input_mask'] = updated_masks
+        return batch
+
+    final_ds = lm_datasets.map(
+        update_mask,
+        batched=True,
+        desc="Updating input mask",
+    )
+
     print(lm_datasets, 'padded dataset')
 
     # Create final dataset dictionary
     raw_datasets = datasets.DatasetDict()
-    raw_datasets['train'] = lm_datasets
+    raw_datasets['train'] = final_ds
 
     return raw_datasets
 
