@@ -1,7 +1,3 @@
-import os
-
-import torch.cuda
-
 import config
 from generation import load_model
 from data.load_data import load_data, normalization, train_val_dataloaders
@@ -45,7 +41,6 @@ def train_ablation():
 
 def eval_ablation():
     import eval
-    import os
     train_data, val_data = load_data(input_dir='data/Modified', version=7)
     x_mean, x_std, y_mean, y_std = normalization(train_data)
 
@@ -72,8 +67,5 @@ def eval_ablation():
 
 
 if __name__ == "__main__":
-    # set cwd to main project directory
-    os.chdir(os.path.dirname(os.getcwd()))
-
-    # train_ablation()
+    train_ablation()
     eval_ablation()
