@@ -39,7 +39,7 @@ def set_parameters(args):
     global BATCH_SIZE, VALIDATION_BATCH_SIZE, LEARNING_RATE, EPOCHS, DEVICE, PATIENCE
     global BEST_MODEL_PATH
 
-    SEQ_LEN = 10 if args.get('seq_len') is None else args['seq_len']
+    SEQ_LEN = 12 if args.get('seq_len') is None else args['seq_len']
     N_POINTS = 30 if args.get('n_points') is None else args['n_points']
     XY_DIM = 2 if args.get('xy_dim') is None else args['xy_dim']
     PAD_TOKEN_ID = 0 if args.get('pad_token_id') is None else args['pad_token_id']
