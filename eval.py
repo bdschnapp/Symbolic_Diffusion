@@ -6,18 +6,15 @@ import numpy as np
 import config
 
 
-def main():
-    # Load the data
-    train_data, val_data = load_data(input_dir='data/Modified', version=7)
-
-    # Normalize the data
-    x_mean, x_std, y_mean, y_std = normalization(train_data)
-
-    # load the model
-    loaded_model, diffusion_helper = load_model("best_d3pm_pointnet_crossattn.pth")
+def evaluate_model(loaded_model,
+                   diffusion_helper,
+                   val_data, x_mean, x_std, y_mean, y_std,
+                   verbose=False, custom_range=None):
 
     # Generate data using the trained model
-    for item_index_to_generate in range(24, 54):
+    data_range = range(0, len(val_data)) if custom_range is None else custom_range
+    mse_list = []
+    for item_index_to_generate in data_range:
 
         data_item_to_generate = val_data[item_index_to_generate]
 
@@ -37,9 +34,6 @@ def main():
         )
 
         true_tokens = np.array(data_item_to_generate['token_ids'])
-        print(f"Ground Truth Tokens:\n{true_tokens}")
-
-        print(f"Generated tokens: {generated_tokens}")
 
         tokenizer = MathTokenizer()
 
@@ -51,8 +45,7 @@ def main():
         decoded_expression = tokenizer.decode(generated_tokens)
         decoded_ground_truth = tokenizer.decode(true_tokens)
         print(f"Decoded Ground Truth Expression: {decoded_ground_truth}")
-
-        print(f"Decoded Expression: {decoded_expression}")
+        print(f"Decoded   Generated  Expression: {decoded_expression}")
 
         # Split the 30x2 array into two 30x1 arrays and save as keys "X" and "Y"
         data_item_to_generate["X"] = [coord[0] * x_std + x_mean for coord in data_item_to_generate["X_Y_combined"]]
@@ -61,7 +54,35 @@ def main():
         # Write the decoded expression to the "RPN" key
         data_item_to_generate["RPN"] = decoded_expression
 
-        process_and_plot(data_item_to_generate)
+        mse_list.append(process_and_plot(data_item_to_generate, verbose=verbose))
+        print("\n--------------------------------------------\n")
+
+    print(f"Mean Squared Error (MSE) for all generated samples: {np.mean(mse_list)}")
+
+
+def main():
+    # Load the data
+    train_data, val_data = load_data(input_dir='data/Modified', version=7)
+
+    # Normalize the data
+    x_mean, x_std, y_mean, y_std = normalization(train_data)
+
+    # load the model
+    loaded_model, diffusion_helper = load_model("best_d3pm_pointnet_crossattn.pth")
+
+    # Evaluate the model
+    evaluate_model(
+        loaded_model=loaded_model,
+        diffusion_helper=diffusion_helper,
+        val_data=val_data,
+        x_mean=x_mean,
+        x_std=x_std,
+        y_mean=y_mean,
+        y_std=y_std,
+        verbose=True
+    )
+
+
 
 
 if __name__ == "__main__":

@@ -63,31 +63,3 @@ def set_parameters(args):
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     PATIENCE = 10 if args.get('patience') is None else args['patience']
     BEST_MODEL_PATH = "best_d3pm_pointnet_crossattn.pth" if args.get('best_model_path') is None else args['best_model_path']
-
-
-# ablation study
-ablation_tests = [
-    {'learning_rate': 1e-4, 'best_model_path': 'ablation_lr_1e-4.pth'},
-    {'learning_rate': 5e-5, 'best_model_path': 'ablation_lr_5e-5.pth'},
-    {'learning_rate': 1e-5, 'best_model_path': 'ablation_lr_1e-5.pth'},
-
-    {'embed_dim': 128, 'best_model_path': 'ablation_embed_128.pth'},
-    {'embed_dim': 192, 'best_model_path': 'ablation_embed_192.pth'},
-    {'embed_dim': 256, 'best_model_path': 'ablation_embed_256.pth'},
-
-    {'num_heads': 8, 'best_model_path': 'ablation_heads_8.pth'},
-    {'num_heads': 12, 'best_model_path': 'ablation_heads_12.pth'},
-    {'num_heads': 16, 'best_model_path': 'ablation_heads_16.pth'},
-
-    {'num_layers': 4, 'best_model_path': 'ablation_layers_4.pth'},
-    {'num_layers': 8, 'best_model_path': 'ablation_layers_8.pth'},
-    {'num_layers': 12, 'best_model_path': 'ablation_layers_12.pth'},
-
-    {'dim_feedforward': 512, 'best_model_path': 'ablation_ffn_512.pth'},
-    {'dim_feedforward': 768, 'best_model_path': 'ablation_ffn_768.pth'},
-    {'dim_feedforward': 1024, 'best_model_path': 'ablation_ffn_1024.pth'},
-
-    {'batch_size': 64, 'best_model_path': 'ablation_batch_64.pth'},
-    {'batch_size': 128, 'best_model_path': 'ablation_batch_128.pth'},
-    {'batch_size': 256, 'best_model_path': 'ablation_batch_256.pth'},
-]

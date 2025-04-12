@@ -112,7 +112,7 @@ def evaluate_rpn_with_params(rpn_expr, x_value, params):
 
 
 # --- Constant Fitting Function (MODIFIED for parallel multi-start L-BFGS-B) ---
-def fit_constants(original_rpn_expr, X_data, Y_data, num_starts=64, max_workers=None): # Added max_workers
+def fit_constants(original_rpn_expr, X_data, Y_data, num_starts=64, max_workers=None, verbose=False):
     """
     Fits constants using multiple runs of L-BFGS-B in parallel.
     """
@@ -153,15 +153,15 @@ def fit_constants(original_rpn_expr, X_data, Y_data, num_starts=64, max_workers=
     # Determine max_workers
     if max_workers is None:
         try:
-            # Default to using all available cores
-            max_workers = os.cpu_count()
+            # Default to using 90% of available cores
+            max_workers = int(os.cpu_count() * 9 / 10)
         except NotImplementedError:
-            print("Warning: cpu_count() not implemented. Defaulting to 1 worker.")
             max_workers = 1
     elif max_workers <= 0:
          max_workers = 1 # Ensure at least one worker
 
-    print(f"Starting {num_starts} L-BFGS-B runs using up to {max_workers} workers...")
+    if verbose:
+        print(f"Starting {num_starts} L-BFGS-B runs using up to {max_workers} workers...")
 
     # Generate all initial guesses first
     initial_guesses = [np.random.uniform(low=-2.1, high=2.1, size=n_constants) for _ in range(num_starts)]
@@ -212,17 +212,17 @@ def fit_constants(original_rpn_expr, X_data, Y_data, num_starts=64, max_workers=
     elif successful_runs > 0:
          status_message = f"Optimization Warning: {successful_runs} LBFGS runs succeeded but no best result found?"
 
-    elapsed_time = time.time() - start_time
-    print(f"Parallel L-BFGS-B finished in {elapsed_time:.2f} seconds.")
+    if verbose:
+        elapsed_time = time.time() - start_time
+        print(f"Parallel L-BFGS-B finished in {elapsed_time:.2f} seconds.")
+
     return unique_rpn_expr, fitted_params, status_message
 
 
-def process_and_plot(record, lbfgs_starts=64, max_workers=None):
+def process_and_plot(record, lbfgs_starts=64, max_workers=None, verbose=False):
     if not all(k in record for k in ["X", "Y", "RPN"]):
         print("Skipping record: Missing keys.")
         return
-
-    # ... (data loading/validation remains the same) ...
     try:
         X_sample = np.array(record["X"], dtype=float).flatten()
         Y_sample = np.array(record["Y"], dtype=float).flatten()
@@ -241,30 +241,39 @@ def process_and_plot(record, lbfgs_starts=64, max_workers=None):
         num_starts=lbfgs_starts, max_workers=max_workers
     )
 
-    print(f"Fit Status: {fit_status}")
-    if not fitted_params and "Success" not in fit_status: print("Skipping plot: Fitting failed."); return
+    if verbose:
+        print(f"Fit Status: {fit_status}")
 
-    # ... (plotting logic remains the same) ...
-    x_min, x_max = X_plot.min(), X_plot.max()
-    if np.isclose(x_min, x_max): x_eval = np.array([x_min])
-    else: x_eval = np.linspace(x_min, x_max, 100)
-    y_eval = model_predictions(unique_rpn_expr, x_eval, fitted_params)
-    print(f"Original RPN: {original_rpn_expr}")
-    plt.figure(figsize=(8, 6))
-    y_eval_valid = y_eval[~np.isnan(y_eval)]
-    y_min_plot = min(Y_plot.min(), y_eval_valid.min()) if y_eval_valid.size > 0 else Y_plot.min()
-    y_max_plot = max(Y_plot.max(), y_eval_valid.max()) if y_eval_valid.size > 0 else Y_plot.max()
-    y_range = y_max_plot - y_min_plot
-    if np.isclose(y_range, 0): y_range = max(abs(y_min_plot) * 0.2, 1.0)
-    plt.plot(x_eval, y_eval, label="Fitted Model", color='blue', linewidth=2)
-    plt.scatter(X_plot, Y_plot, color="red", label="Sample Data (Valid)", s=10, alpha=0.7)
-    title = "Fitted Model vs Sample Data"
-    if "Err=" in fit_status: title += f"\n({fit_status.split(': ')[-1]})"
-    plt.title(title)
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.6)
-    plt.ylim(y_min_plot - y_range * 0.1, y_max_plot + y_range * 0.1)
-    plt.tight_layout()
-    plt.show()
+    if not fitted_params and "Success" not in fit_status:
+        print("Fitting failed.")
+        return
+
+    mse = float((fit_status.split(': ')[-1]).split('=')[-1].strip())
+
+    if verbose:
+        x_min, x_max = X_plot.min(), X_plot.max()
+        if np.isclose(x_min, x_max): x_eval = np.array([x_min])
+        else: x_eval = np.linspace(x_min, x_max, 100)
+        y_eval = model_predictions(unique_rpn_expr, x_eval, fitted_params)
+        plt.figure(figsize=(8, 6))
+        y_eval_valid = y_eval[~np.isnan(y_eval)]
+        y_min_plot = min(Y_plot.min(), y_eval_valid.min()) if y_eval_valid.size > 0 else Y_plot.min()
+        y_max_plot = max(Y_plot.max(), y_eval_valid.max()) if y_eval_valid.size > 0 else Y_plot.max()
+        y_range = y_max_plot - y_min_plot
+        if np.isclose(y_range, 0): y_range = max(abs(y_min_plot) * 0.2, 1.0)
+        plt.plot(x_eval, y_eval, label="Fitted Model", color='blue', linewidth=2)
+        plt.scatter(X_plot, Y_plot, color="red", label="Sample Data (Valid)", s=10, alpha=0.7)
+        title = "Fitted Model vs Sample Data"
+        if "Err=" in fit_status: title += f"\n({fit_status.split(': ')[-1]})"
+        plt.title(title)
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.ylim(y_min_plot - y_range * 0.1, y_max_plot + y_range * 0.1)
+        plt.tight_layout()
+        plt.show()
+
+    # return the error
+    print(f"MSE: {mse}")
+    return mse
