@@ -59,7 +59,7 @@ def set_parameters(args):
     BATCH_SIZE = 128 if args.get('batch_size') is None else args['batch_size']
     VALIDATION_BATCH_SIZE = 2048 if args.get('validation_batch_size') is None else args['validation_batch_size']
     LEARNING_RATE = 4e-5 if args.get('learning_rate') is None else args['learning_rate']
-    EPOCHS = 45 if args.get('epochs') is None else args['epochs']
+    EPOCHS = 1 if args.get('epochs') is None else args['epochs']
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     PATIENCE = 10 if args.get('patience') is None else args['patience']
     BEST_MODEL_PATH = "best_d3pm_pointnet_crossattn.pth" if args.get('best_model_path') is None else args['best_model_path']
