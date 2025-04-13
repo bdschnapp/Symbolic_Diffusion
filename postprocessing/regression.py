@@ -277,3 +277,25 @@ def process_and_plot(record, lbfgs_starts=64, max_workers=None, verbose=False):
     # return the error
     print(f"MSE: {mse}")
     return mse
+
+
+def mse_bar_chart(mse_list):
+    """
+    Plot a bar chart of MSE values.
+    """
+    # Calculate counts for each bin
+    bins = [0, 0.0001, 0.01, 1, 100]
+    counts, _ = np.histogram(mse_list, bins=bins)
+    y_pos = np.arange(len(counts))
+
+    ranges = []
+    for i in range(len(bins) - 1):
+        ranges.append(f"[{bins[i]}, {bins[i + 1]}]")
+
+    # Plot the bar chart using bin widths
+    plt.bar(y_pos, counts, align='center', edgecolor='black')
+    plt.xticks(y_pos, ranges)
+    plt.xlabel("MSE Range")
+    plt.ylabel("Count")
+    plt.title("MSE Bar Chart")
+    plt.savefig("mse_bar_chart.png")

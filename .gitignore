@@ -1,5 +1,5 @@
 .venv
 .idea
 .diffusion_models/*
-/ablation/*
+/checkpoints/*
 /data/*.json
