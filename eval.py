@@ -12,12 +12,12 @@ def evaluate_model(loaded_model,
                    verbose=False, custom_range=None):
 
     # Generate data using the trained model
-    data_range = range(0, len(val_data)) if custom_range is None else custom_range
+    data_range = range(0, min(len(val_data), 500)) if custom_range is None else custom_range
     mse_list = []
     for item_index_to_generate in data_range:
 
         data_item_to_generate = val_data[item_index_to_generate]
-
+        print(f"Eval [{item_index_to_generate}/{data_range[-1]}]")
         # 4. Call the generation function
         generated_tokens = generate_tokens(
             data_item=data_item_to_generate,
@@ -53,8 +53,9 @@ def evaluate_model(loaded_model,
 
         # Write the decoded expression to the "RPN" key
         data_item_to_generate["RPN"] = decoded_expression
-
-        mse_list.append(process_and_plot(data_item_to_generate, verbose=verbose))
+        mse = process_and_plot(data_item_to_generate, verbose=verbose)
+        if mse is not None:
+            mse_list.append(mse)
         print("\n--------------------------------------------\n")
 
     print(f"Mean Squared Error (MSE) for all generated samples: {np.mean(mse_list)}")

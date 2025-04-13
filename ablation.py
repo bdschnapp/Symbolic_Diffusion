@@ -3,8 +3,8 @@ from generation import load_model
 from data.load_data import load_data, normalization, train_val_dataloaders
 
 ablation_tests = [
-    # {'learning_rate': 1e-4, 'best_model_path': 'ablation/lr_1e-4.pth'},
-    # {'learning_rate': 5e-5, 'best_model_path': 'ablation/lr_5e-5.pth'},
+    {'learning_rate': 1e-4, 'best_model_path': 'ablation/lr_1e-4.pth'},
+    {'learning_rate': 5e-5, 'best_model_path': 'ablation/lr_5e-5.pth'},
     {'learning_rate': 1e-5, 'best_model_path': 'ablation/lr_1e-5.pth'},
 
     {'embed_dim': 132, 'best_model_path': 'ablation/embed_132.pth'},
@@ -57,11 +57,7 @@ def eval_ablation():
             y_mean=y_mean,
             y_std=y_std,
             verbose=False,
-            custom_range=range(5, 10)
         )
-
-        del loaded_model
-        del diffusion_helper
 
         print(f"Model: {test['best_model_path']}, MSE: {mse}")
 
