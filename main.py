@@ -41,7 +41,7 @@ def main():
         x_std=x_std,
         y_mean=y_mean,
         y_std=y_std,
-        verbose=True
+        verbose=False
     )
 
     # Process and plot the MSE histogram

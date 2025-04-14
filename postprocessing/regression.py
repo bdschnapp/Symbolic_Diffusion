@@ -9,12 +9,61 @@ import matplotlib.pyplot as plt
 
 
 # --- Top-Level Objective Function ---
-def objective_for_optimization(param_vector, rpn_expr, const_names, x_data, y_data):
+def objective_for_optimization(param_vector, rpn_expr, const_names, x_data, y_data, epsilon=1e-8):
+    """
+    Compute the Normalized Root Mean Squared Error (NRMSE) using the standard deviation of the target data.
+    NRMSE = RMSE / (std(y_data) + epsilon)
+    This provides a loss value less sensitive to the scale of y_data.
+    Returns a large value if predictions are invalid or standard deviation of y is near zero.
+    """
     params = {name: value for name, value in zip(const_names, param_vector)}
-    predictions = model_predictions(rpn_expr, x_data, params)
-    if np.isnan(predictions).any(): return 1e10
-    error = np.sum((predictions - y_data)**2)
-    return error if not (np.isinf(error) or np.isnan(error)) else 1e12
+
+    try:
+        predictions = model_predictions(rpn_expr, x_data, params)
+
+        # Check for NaN/Inf in predictions which can occur from invalid params/expressions
+        if not np.all(np.isfinite(predictions)):
+            return 1e10  # Return a large error if predictions are invalid
+
+    except Exception:
+        # Catch errors during model prediction (e.g., math errors in RPN evaluation)
+        return 1e10  # Return a very large error
+
+    # Ensure predictions and y_data have compatible shapes if necessary
+    # (Assuming model_predictions handles broadcasting or returns correct shape)
+    if predictions.shape != y_data.shape:
+        # Handle shape mismatch - returning large error is safest
+        return 1e10
+
+    # Compute the residuals
+    residuals = predictions - y_data
+
+    # Compute the Mean Squared Error (MSE)
+    mse = np.mean(residuals ** 2)
+
+    # Compute the Root Mean Squared Error (RMSE)
+    rmse = np.sqrt(mse)
+
+    # Compute the standard deviation of the ground truth data
+    std_y = np.std(y_data)
+
+    # Compute the Normalized RMSE (NRMSE)
+    # Add epsilon to prevent division by zero or instability if std_y is very small
+    if std_y < epsilon:
+        # If standard deviation is effectively zero (y_data is constant),
+        # return RMSE directly, or a very large number if RMSE is also non-zero.
+        # Returning RMSE makes sense as any deviation from the constant value is an error.
+        # However, for optimization stability, returning a large value might be better if rmse is not zero.
+        # If rmse is also near zero, the fit is good, return small value.
+        return rmse if rmse < epsilon else 1e13  # Return large error if std_dev is zero but rmse isn't
+
+    nrmse = rmse / std_y
+
+    # Final check for sanity of the result (e.g. if rmse was Inf)
+    if not np.isfinite(nrmse):
+        return 1e10  # Return a large error
+
+    return nrmse
 
 
 # --- Top-Level Worker Function for a Single L-BFGS-B Run ---
