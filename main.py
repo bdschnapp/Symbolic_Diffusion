@@ -3,7 +3,7 @@ import eval
 from generation import load_model
 import config
 from data.load_data import load_data, train_val_dataloaders, normalization
-from postprocessing.regression import mse_bar_chart
+from postprocessing.regression import mse_bar_chart, mse_log_histogram
 
 args = {
     'learning_rate': 1e-4,
@@ -13,7 +13,7 @@ args = {
     'num_heads': 16,
     'num_layers': 8,
     'epochs': 100,
-    'best_model_path': 'hypothetical_optimal_model.pth',
+    'best_model_path': 'checkpoints/hypothetical_optimal_model.pth',
 
 }
 
@@ -26,8 +26,9 @@ def main():
     # Set parameters based on args
     config.set_parameters(args)
 
-    # Train the model
-    # train.train(train_loader, val_loader)
+    # Train the model, the pretrained model is included,
+    # comment out the next line unless you want to train from scratch
+    train.train(train_loader, val_loader)
 
     # Load the best model
     loaded_model, diffusion_helper = load_model(args['best_model_path'])
@@ -45,7 +46,8 @@ def main():
     )
 
     # Process and plot the MSE histogram
-    mse_bar_chart(mse_list)
+    mse_log_histogram(mse_list)
+    mse_bar_chart()
 
 
 if __name__ == "__main__":

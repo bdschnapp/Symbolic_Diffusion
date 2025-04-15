@@ -8,8 +8,7 @@ import config
 import matplotlib.pyplot as plt
 
 
-# --- Top-Level Objective Function ---
-def objective_for_optimization(param_vector, rpn_expr, const_names, x_data, y_data, epsilon=1e-8):
+def objective_for_optimization_old(param_vector, rpn_expr, const_names, x_data, y_data, epsilon=1e-8):
     """
     Compute the Normalized Root Mean Squared Error (NRMSE) using the standard deviation of the target data.
     NRMSE = RMSE / (std(y_data) + epsilon)
@@ -64,6 +63,30 @@ def objective_for_optimization(param_vector, rpn_expr, const_names, x_data, y_da
         return 1e10  # Return a large error
 
     return nrmse
+
+
+# --- Top-Level Objective Function ---
+def objective_for_optimization(param_vector, rpn_expr, const_names, x_data, y_data, epsilon=1e-6):
+    """
+    Compute the normalized Mean Squared Error (MSE) between predictions and ground truth.
+    Normalization is done using ||y||_2 + epsilon to avoid division by zero.
+    """
+    params = {name: value for name, value in zip(const_names, param_vector)}
+    predictions = model_predictions(rpn_expr, x_data, params)
+
+    if np.isnan(predictions).any():
+        return 1e10
+
+    # Compute the residuals
+    residuals = predictions - y_data
+
+    # Compute the normalization factor ||y||_2 + epsilon
+    normalization_factor = np.linalg.norm(y_data) + epsilon
+
+    # Compute the normalized MSE
+    normalized_mse = np.mean((residuals ** 2) / normalization_factor)
+
+    return normalized_mse if not (np.isinf(normalized_mse) or np.isnan(normalized_mse)) else 1e12
 
 
 # --- Top-Level Worker Function for a Single L-BFGS-B Run ---
@@ -328,23 +351,34 @@ def process_and_plot(record, lbfgs_starts=64, max_workers=None, verbose=False):
     return mse
 
 
-def mse_bar_chart(mse_list):
+def mse_log_histogram(mse_list):
+    """
+    Plot a histogram of MSE values with logarithmic bin boundaries.
+    """
+    # Define logarithmic bin boundaries
+    bins = np.logspace(np.log10(min(mse_list) + 1e-10), np.log10(max(mse_list) + 1e-10), 30)
+
+    plt.figure(figsize=(10, 5))
+    plt.hist(mse_list, bins=bins, edgecolor='black', alpha=0.7)
+    plt.xscale('log')
+    plt.title("Histogram of $MSE_N$ Values with Logarithmic Bins")
+    plt.xlabel("$MSE_N$ (log scale)")
+    plt.ylabel("Frequency")
+    plt.show()
+
+
+def mse_bar_chart():
     """
     Plot a bar chart of MSE values.
     """
-    # Calculate counts for each bin
-    bins = [0, 0.0001, 0.01, 1, 100]
-    counts, _ = np.histogram(mse_list, bins=bins)
+    counts = [75, 49, 14, 11, 1]
     y_pos = np.arange(len(counts))
-
-    ranges = []
-    for i in range(len(bins) - 1):
-        ranges.append(f"[{bins[i]}, {bins[i + 1]}]")
+    labels = ["Type 1", "Type 2", "Type 3", "Type 4", "Type 5"]
 
     # Plot the bar chart using bin widths
-    plt.bar(y_pos, counts, align='center', edgecolor='black')
-    plt.xticks(y_pos, ranges)
-    plt.xlabel("MSE Range")
+    plt.bar(y_pos, counts, align='center', edgecolor='black', alpha=0.7)
+    plt.xticks(y_pos, labels)
+    plt.xlabel("Generated Expression Types")
     plt.ylabel("Count")
-    plt.title("MSE Bar Chart")
-    plt.savefig("mse_bar_chart.png")
+    plt.title("Expression Type Bar Chart")
+    plt.show()

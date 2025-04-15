@@ -6,16 +6,16 @@ from diffusion.diffusion_utils import linear_beta_schedule, cosine_beta_schedule
 
 
 class DiscreteDiffusion:
-    def __init__(self, num_timesteps=config.NUM_TIMESTEPS, vocab_size=config.VOCAB_SIZE, device=config.DEVICE): # Correct ':'
+    def __init__(self, num_timesteps=config.NUM_TIMESTEPS, vocab_size=config.VOCAB_SIZE, device=config.DEVICE):
         self.num_timesteps = num_timesteps
         self.vocab_size = vocab_size
         self.device = device
 
-        if config.SCHEDULE_TYPE == 'linear': # Correct ':'
+        if config.SCHEDULE_TYPE == 'linear':
             self.betas = linear_beta_schedule(num_timesteps).to(device)
-        elif config.SCHEDULE_TYPE == 'cosine': # Correct ':'
+        elif config.SCHEDULE_TYPE == 'cosine':
             self.betas = cosine_beta_schedule(num_timesteps).to(device)
-        else: # Correct ':'
+        else:
             raise ValueError(f"Unknown schedule type: {config.SCHEDULE_TYPE}")
 
         self.alphas = (1. - self.betas).to(device)
@@ -26,11 +26,11 @@ class DiscreteDiffusion:
         self.log_q_t_x_0 = self._compute_log_q_t_x_0()
         self.log_q_t_minus_1_x_t_x_0 = self._compute_log_q_t_minus_1_x_t_x_0()
 
-    def _compute_log_q_t_x_t_minus_1(self): # Correct ':'
+    def _compute_log_q_t_x_t_minus_1(self):
         """ Compute log q(x_t | x_{t-1}) """
         log_q = torch.zeros(self.num_timesteps, self.vocab_size, self.vocab_size, device=self.device, dtype=torch.float64)
-        eye = torch.eye(self.vocab_size, device=self.device) # Precompute eye
-        for t in range(self.num_timesteps): # Correct ':'
+        eye = torch.eye(self.vocab_size, device=self.device)
+        for t in range(self.num_timesteps):
             beta_t = self.betas[t]
             diag_indices = torch.arange(self.vocab_size, device=self.device)
             log_q[t, diag_indices, diag_indices] = torch.log(1.0 - beta_t + beta_t / self.vocab_size)
@@ -38,11 +38,11 @@ class DiscreteDiffusion:
             log_q[t] = log_q[t] + off_diag_val * (1.0 - eye)
         return log_q.float()
 
-    def _compute_log_q_t_x_0(self): # Correct ':'
+    def _compute_log_q_t_x_0(self):
         """ Compute log q(x_t | x_0) """
         log_q = torch.zeros(self.num_timesteps, self.vocab_size, self.vocab_size, device=self.device, dtype=torch.float64)
         eye = torch.eye(self.vocab_size, device=self.device) # Precompute eye
-        for t in range(self.num_timesteps): # Correct ':'
+        for t in range(self.num_timesteps):
             alpha_bar_t = self.alphas_cumprod[t]
             diag_indices = torch.arange(self.vocab_size, device=self.device)
             log_q[t, diag_indices, diag_indices] = torch.log(alpha_bar_t + (1.0 - alpha_bar_t) / self.vocab_size)
@@ -50,12 +50,12 @@ class DiscreteDiffusion:
             log_q[t] = log_q[t] + off_diag_val * (1.0 - eye)
         return log_q.float()
 
-    def _compute_log_q_t_minus_1_x_t_x_0(self): # Correct ':'
+    def _compute_log_q_t_minus_1_x_t_x_0(self):
         """ Compute log q(x_{t-1} | x_t, x_0) """
         log_q_posterior = torch.zeros(self.num_timesteps, self.vocab_size, self.vocab_size, self.vocab_size, device=self.device, dtype=torch.float64)
         log_q_t_x_t_minus_1_64 = self.log_q_t_x_t_minus_1.double()
         log_q_t_x_0_64 = self.log_q_t_x_0.double()
-        for t in range(1, self.num_timesteps): # Correct ':'
+        for t in range(1, self.num_timesteps):
             log_q_t_given_t_minus_1 = log_q_t_x_t_minus_1_64[t]
             log_q_t_minus_1_given_0 = log_q_t_x_0_64[t-1]
             log_q_posterior[t] = log_q_t_given_t_minus_1.unsqueeze(1) + log_q_t_minus_1_given_0.unsqueeze(0)
@@ -65,7 +65,7 @@ class DiscreteDiffusion:
         log_q_posterior = torch.clamp(log_q_posterior, -100.0, 0.0)
         return log_q_posterior.float()
 
-    def q_sample(self, x_start, t): # Correct ':'
+    def q_sample(self, x_start, t):
         """ Sample x_t given x_0 and t """
         batch_size, seq_len = x_start.shape
         log_q_t_x_0_for_batch_t = self.log_q_t_x_0[t]
@@ -79,7 +79,7 @@ class DiscreteDiffusion:
         x_t = torch.argmax(log_probs + gumbel_noise, dim=-1)
         return x_t.long()
 
-    def q_posterior_log_probs(self, x_0, x_t, t): # Correct ':'
+    def q_posterior_log_probs(self, x_0, x_t, t):
         """ Compute log q(x_{t-1} | x_t, x_0) """
         batch_size, seq_len = x_0.shape
         log_q_posterior_t = self.log_q_t_minus_1_x_t_x_0[t]
@@ -92,12 +92,12 @@ class DiscreteDiffusion:
         log_q_posterior_t_i_j = torch.gather(log_q_posterior_t_i, dim=2, index=x_0_idx).squeeze(2)
         return log_q_posterior_t_i_j
 
-    def p_log_probs(self, model, x_t, t, condition): # Correct ':'
+    def p_log_probs(self, model, x_t, t, condition):
         """ Compute log p_theta(x_0 | x_t, t, condition) """
         log_pred_x0 = model(x_t, t, condition)
         return F.log_softmax(log_pred_x0, dim=-1)
 
-    def p_sample(self, model, x_t, t, condition): # Correct ':'
+    def p_sample(self, model, x_t, t, condition):
         """ Sample x_{t-1} from p_theta(x_{t-1} | x_t, t, condition) """
         batch_size, seq_len = x_t.shape
         device = x_t.device
@@ -117,20 +117,20 @@ class DiscreteDiffusion:
         return x_t_minus_1.long()
 
     @torch.no_grad()
-    def sample(self, model, condition, shape): # Correct ':'
+    def sample(self, model, condition, shape):
         """ Generate samples from the model """
         batch_size, seq_len = shape
         device = self.device
         model.eval() # Ensure model is in eval mode for sampling
         x_t = torch.randint(1, self.vocab_size, size=shape, device=device).long() # Avoid sampling PAD initially if possible
 
-        for t in reversed(range(0, self.num_timesteps)): # Correct ':'
+        for t in reversed(range(0, self.num_timesteps)):
             print(f"\rSampling timestep {t+1}/{self.num_timesteps}   ", end="")
             sys.stdout.flush()
             t_tensor = torch.full((batch_size,), t, device=device, dtype=torch.long)
-            if t > 0: # Correct ':'
+            if t > 0:
                  x_t = self.p_sample(model, x_t, t_tensor, condition)
-            else: # Correct ':'
+            else:
                  # At t=0, use the model's prediction of x_0 directly
                  log_pred_x0 = self.p_log_probs(model, x_t, t_tensor, condition)
                  # Sample x_0 from the final prediction
@@ -142,7 +142,7 @@ class DiscreteDiffusion:
         model.train() # Set back to train mode after sampling
         return x_t
 
-    def compute_loss(self, model, x_start, condition, pad_token_id=config.PAD_TOKEN_ID): # Correct ':'
+    def compute_loss(self, model, x_start, condition, pad_token_id=config.PAD_TOKEN_ID):
         """ Compute the training loss """
         batch_size, seq_len = x_start.shape
         device = x_start.device
